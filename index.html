@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Code Playground</title>
+  <title>StackLite</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap');
 
@@ -660,7 +660,7 @@
 <body>
 
 <header>
-  <div class="logo">code<span>pad</span></div>
+  <div class="logo">stack<span>lite</span></div>
 
   <div class="sep"></div>
 
@@ -1315,7 +1315,7 @@ console.log('Total users:', users.length);
     const code    = editor ? editor.getValue() : '';
     const include = document.getElementById('include-code').checked;
 
-    let prompt = `You are a coding assistant embedded inside a ${lang} code playground (similar to a browser-based REPL). The user writes ${lang} code on the left and sees the output on the right.
+    let prompt = `You are a coding assistant embedded inside StackLite, a ${lang} learning playground. The user writes ${lang} code on the left and sees the output on the right.
 
 Your role is to help them when they are stuck — explain concepts, debug errors, suggest improvements, or guide their thinking. Be concise and practical. Prefer short answers unless depth is needed. When showing code, use ${lang} and keep snippets minimal.`;
 

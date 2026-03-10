@@ -1,5 +1,5 @@
 {
-  "name": "codepad",
+  "name": "stacklite",
   "private": true,
   "scripts": {
     "dev": "vite",
