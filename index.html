@@ -1610,6 +1610,7 @@ Your role is to help them when they are stuck — explain concepts, debug errors
   function openChatWithSelection() {
     const selection = editor?.getModel()?.getValueInRange(editor.getSelection()) || '';
 
+    if (sidebarOpen && !selection.trim()) { toggleSidebar(); return; }
     if (!sidebarOpen) toggleSidebar();
 
     setTimeout(() => {
@@ -1812,7 +1813,7 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     currentSessionId   = genId();
     currentSessionTime = Date.now();
     resetEditorToLang('js');
-    editor.setValue(DEFAULTS.js);
+    editor.setValue('');
     clearConsole();
     hideError();
     resetChatUI();
