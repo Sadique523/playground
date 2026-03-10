@@ -746,6 +746,52 @@
     .session-item:hover .session-delete { opacity: 1; }
     .session-delete:hover { color: #ff6b6b; }
 
+    /* Selected code context card */
+    .selection-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: #111;
+      border: 1px solid var(--border-mid);
+      border-radius: 5px;
+      padding: 7px 10px;
+      margin-bottom: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .selection-card-body { flex: 1; min-width: 0; }
+
+    .selection-card-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 3px;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .selection-card-preview {
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .selection-card-dismiss {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      transition: color 0.1s;
+      margin-top: 1px;
+    }
+    .selection-card-dismiss:hover { color: #ff6b6b; }
+
     /* Ollama notice */
     .no-key-notice {
       background: transparent;
@@ -903,6 +949,18 @@
       </label>
       <button class="clear-btn" onclick="clearChat()">Clear chat</button>
     </div>
+    <div id="selection-card" class="selection-card" style="display:none">
+      <div class="selection-card-body">
+        <div class="selection-card-label">Selected code</div>
+        <div class="selection-card-preview" id="selection-card-preview"></div>
+      </div>
+      <button class="selection-card-dismiss" onclick="clearSelectionCard()" title="Remove">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
     <div class="chat-input-row">
       <textarea id="chat-input" placeholder="Ask about your code… (Enter to send)" rows="2"></textarea>
       <button id="send-btn" onclick="sendMessage()">
@@ -1328,12 +1386,21 @@ console.log('Total users:', users.length);
     const apiKey = getApiKey();
     if (!apiKey) { updateKeyStatus(); return; }
 
+    // Attach pending selection as context
+    const selectedCode = pendingSelection;
+    clearSelectionCard();
+
     input.value = '';
     input.style.height = 'auto';
 
-    // Show user message
+    // Show user message (display only the typed text, selection shown via card)
     appendMessage('user', text);
-    chatHistory.push({ role: 'user', content: text });
+
+    // Build content for API: include selection if present
+    const fullContent = selectedCode
+      ? `\`\`\`${currentLang}\n${selectedCode}\n\`\`\`\n\n${text}`
+      : text;
+    chatHistory.push({ role: 'user', content: fullContent });
 
     // Build messages with optional code context
     const includeCode = document.getElementById('include-code').checked;
@@ -1530,22 +1597,32 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     `;
   }
 
+  /* ── Selection card ── */
+  let pendingSelection = '';
+
+  function showSelectionCard(code) {
+    pendingSelection = code;
+    const preview = code.split('\n').find(l => l.trim()) || code;
+    document.getElementById('selection-card-preview').textContent = preview;
+    document.getElementById('selection-card').style.display = 'flex';
+  }
+
+  function clearSelectionCard() {
+    pendingSelection = '';
+    document.getElementById('selection-card').style.display = 'none';
+    document.getElementById('selection-card-preview').textContent = '';
+  }
+
   /* ── Open chat, optionally seeding with selected code ── */
   function openChatWithSelection() {
     const selection = editor?.getModel()?.getValueInRange(editor.getSelection()) || '';
 
     if (!sidebarOpen) toggleSidebar();
 
-    const input = document.getElementById('chat-input');
     setTimeout(() => {
-      if (selection.trim()) {
-        input.value = `\`\`\`${currentLang}\n${selection}\n\`\`\`\n`;
-        // Move cursor to end so user types their question after the block
-        input.setSelectionRange(input.value.length, input.value.length);
-        input.dispatchEvent(new Event('input')); // trigger auto-grow
-      }
-      input.focus();
-    }, sidebarOpen ? 0 : 280); // wait for sidebar animation if it was closed
+      if (selection.trim()) showSelectionCard(selection);
+      document.getElementById('chat-input').focus();
+    }, sidebarOpen ? 0 : 280);
   }
 
   /* ── Keyboard shortcuts ── */
@@ -1796,7 +1873,7 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     toggleKeyPanel, saveSettings,
     sendMessage, clearChat,
     toggleSessionsPanel, newSession, loadSession, deleteSession,
-    openChatWithSelection,
+    openChatWithSelection, clearSelectionCard,
   });
 </script>
 </body>
