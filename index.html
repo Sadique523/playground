@@ -1087,8 +1087,21 @@ console.log('Total users:', users.length);
     const fmt = v => {
       if (v === null) return 'null';
       if (v === undefined) return 'undefined';
-      if (typeof v === 'object') { try { return JSON.stringify(v, null, 2); } catch { return String(v); } }
-      return String(v);
+      if (typeof v === 'string') return v;
+      if (typeof v !== 'object' && typeof v !== 'function') return String(v);
+      if (v instanceof Map) {
+        const entries = [...v.entries()].map(([k, val]) => `${fmt(k)} => ${fmt(val)}`).join(', ');
+        return `Map(${v.size}) { ${entries} }`;
+      }
+      if (v instanceof Set) {
+        const entries = [...v.values()].map(fmt).join(', ');
+        return `Set(${v.size}) { ${entries} }`;
+      }
+      if (Array.isArray(v)) {
+        try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+      }
+      if (typeof v === 'function') return v.toString().split('{')[0].trim() + ' { … }';
+      try { return JSON.stringify(v, null, 2); } catch { return String(v); }
     };
     const capture = (type, args) => logs.push({ type, text: args.map(fmt).join(' ') });
     console.log   = (...a) => { capture('log',   a); orig.log(...a); };
