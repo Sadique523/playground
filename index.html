@@ -946,10 +946,6 @@
       Get one free at <a href="https://console.groq.com" target="_blank" style="color:#888;text-decoration:underline">console.groq.com</a>
     </div>
     <div class="chat-options">
-      <label class="chat-option-label">
-        <input type="checkbox" id="include-code" checked>
-        Include my code
-      </label>
       <button class="clear-btn" onclick="clearChat()">Clear chat</button>
     </div>
     <div id="selection-card" class="selection-card" style="display:none">
@@ -1405,11 +1401,9 @@ console.log('Total users:', users.length);
       : text;
     chatHistory.push({ role: 'user', content: fullContent });
 
-    // Build messages with optional code context
-    const includeCode = document.getElementById('include-code').checked;
+    // Build messages — if no selection, auto-include full editor code on first message
     let messages = chatHistory.slice();
-    if (includeCode && messages.length === 1) {
-      // Inject code into the first user message as context
+    if (!selectedCode && messages.length === 1) {
       const code = editor ? editor.getValue() : '';
       messages = [{
         role: 'user',
@@ -1516,17 +1510,12 @@ console.log('Total users:', users.length);
   }
 
   function buildSystemPrompt() {
-    const lang    = currentLang === 'js' ? 'JavaScript' : 'TypeScript';
-    const code    = editor ? editor.getValue() : '';
-    const include = document.getElementById('include-code').checked;
+    const lang = currentLang === 'js' ? 'JavaScript' : 'TypeScript';
+    const code = editor ? editor.getValue() : '';
 
     let prompt = `You are a coding assistant embedded inside StackLite, a ${lang} learning playground. The user writes ${lang} code on the left and sees the output on the right.
 
 Your role is to help them when they are stuck — explain concepts, debug errors, suggest improvements, or guide their thinking. Be concise and practical. Prefer short answers unless depth is needed. When showing code, use ${lang} and keep snippets minimal.`;
-
-    if (include && code.trim()) {
-      prompt += `\n\nThe user's current code:\n\`\`\`${currentLang}\n${code}\n\`\`\``;
-    }
 
     return prompt;
   }
