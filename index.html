@@ -1031,6 +1031,11 @@ console.log('Total users:', users.length);
     });
 
     // auto-save + ts compile wired up after session init below
+
+    // ⌘K inside Monaco: open chat with selection as context
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+      openChatWithSelection();
+    });
   });
 
   /* ══════════════════════════════════════════════
@@ -1525,10 +1530,28 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     `;
   }
 
+  /* ── Open chat, optionally seeding with selected code ── */
+  function openChatWithSelection() {
+    const selection = editor?.getModel()?.getValueInRange(editor.getSelection()) || '';
+
+    if (!sidebarOpen) toggleSidebar();
+
+    const input = document.getElementById('chat-input');
+    setTimeout(() => {
+      if (selection.trim()) {
+        input.value = `\`\`\`${currentLang}\n${selection}\n\`\`\`\n`;
+        // Move cursor to end so user types their question after the block
+        input.setSelectionRange(input.value.length, input.value.length);
+        input.dispatchEvent(new Event('input')); // trigger auto-grow
+      }
+      input.focus();
+    }, sidebarOpen ? 0 : 280); // wait for sidebar animation if it was closed
+  }
+
   /* ── Keyboard shortcuts ── */
   document.addEventListener('keydown', e => {
     if (!e.metaKey) return;
-    if (e.key === 'k' || e.key === 'K') { e.preventDefault(); toggleSidebar(); }
+    if (e.key === 'k' || e.key === 'K') { e.preventDefault(); openChatWithSelection(); }
     if (e.key === 'r' || e.key === 'R') { e.preventDefault(); runCode(); }
     if (e.key === 's' || e.key === 'S') { e.preventDefault(); toggleSessionsPanel(); }
   });
@@ -1773,6 +1796,7 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     toggleKeyPanel, saveSettings,
     sendMessage, clearChat,
     toggleSessionsPanel, newSession, loadSession, deleteSession,
+    openChatWithSelection,
   });
 </script>
 </body>
