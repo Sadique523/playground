@@ -643,6 +643,109 @@
       margin-left: 1px;
     }
 
+    /* ── Sessions sidebar ── */
+    .sessions-sidebar {
+      width: 0;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--bg);
+      border-right: 0px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.2s ease, min-width 0.2s ease, border-right-width 0.2s step-end;
+    }
+    .sessions-sidebar.open {
+      width: 220px;
+      min-width: 220px;
+      border-right-width: 1px;
+    }
+
+    .sessions-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      height: 40px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .sessions-title { font-size: 11px; font-weight: 500; color: var(--text); }
+
+    .new-session-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: transparent;
+      border: 1px solid var(--border-mid);
+      border-radius: 3px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .new-session-btn:hover { color: var(--text); border-color: #3a3a3a; }
+
+    .sessions-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+    .sessions-list::-webkit-scrollbar { width: 3px; }
+    .sessions-list::-webkit-scrollbar-track { background: transparent; }
+    .sessions-list::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+    .sessions-empty {
+      padding: 16px 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .session-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: background 0.1s;
+    }
+    .session-item:hover { background: #0e0e0e; }
+    .session-item.active { border-left-color: #333; background: #0e0e0e; }
+
+    .session-item-main { flex: 1; min-width: 0; }
+
+    .session-name {
+      font-size: 11.5px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+      font-family: var(--mono);
+    }
+
+    .session-meta { font-size: 10px; color: var(--text-dim); }
+
+    .session-delete {
+      opacity: 0;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      transition: opacity 0.1s, color 0.1s;
+    }
+    .session-item:hover .session-delete { opacity: 1; }
+    .session-delete:hover { color: #ff6b6b; }
+
     /* Ollama notice */
     .no-key-notice {
       background: transparent;
@@ -671,20 +774,40 @@
 
   <div class="spacer"></div>
 
-  <button class="chat-toggle-btn" id="chat-toggle" onclick="toggleSidebar()">
+  <button class="run-btn" onclick="runCode()">
+    <div class="run-icon"></div>
+    Run
+  </button>
+
+  <div class="spacer"></div>
+
+  <button class="chat-toggle-btn" id="sessions-toggle" onclick="toggleSessionsPanel()" title="Sessions (⌘S)">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+      <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>
+    </svg>
+    Sessions
+  </button>
+
+  <button class="chat-toggle-btn" id="chat-toggle" onclick="toggleSidebar()" title="Chat (⌘K)">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
     </svg>
     Chat
   </button>
-
-  <button class="run-btn" onclick="runCode()">
-    <div class="run-icon"></div>
-    Run
-  </button>
 </header>
 
 <div class="app-body">
+
+<!-- ── Sessions Sidebar (left) ── -->
+<div class="sessions-sidebar" id="sessions-sidebar">
+  <div class="sessions-header">
+    <span class="sessions-title">Sessions</span>
+    <button class="new-session-btn" onclick="newSession()">+ New</button>
+  </div>
+  <div class="sessions-list" id="sessions-list"></div>
+</div>
+
 <div class="main">
   <!-- Editor -->
   <div class="editor-pane" id="editor-pane">
@@ -909,9 +1032,7 @@ console.log('Total users:', users.length);
       overviewRulerLanes: 0,
     });
 
-    editor.onDidChangeModelContent(() => {
-      if (currentLang === 'ts') compileTS(false);
-    });
+    // auto-save + ts compile wired up after session init below
   });
 
   /* ══════════════════════════════════════════════
@@ -1293,6 +1414,7 @@ console.log('Total users:', users.length);
       responseBubble.innerHTML = renderMarkdown(finalDisplay);
 
       chatHistory.push({ role: 'assistant', content: finalDisplay });
+      persistSession();
 
     } catch (err) {
       removeTypingIndicator();
@@ -1396,6 +1518,13 @@ Your role is to help them when they are stuck — explain concepts, debug errors
   }
 
   /* ── Keyboard shortcuts ── */
+  document.addEventListener('keydown', e => {
+    if (!e.metaKey) return;
+    if (e.key === 'k' || e.key === 'K') { e.preventDefault(); toggleSidebar(); }
+    if (e.key === 'r' || e.key === 'R') { e.preventDefault(); runCode(); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); toggleSessionsPanel(); }
+  });
+
   document.getElementById('chat-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1417,11 +1546,225 @@ Your role is to help them when they are stuck — explain concepts, debug errors
   // Init key status
   updateKeyStatus();
 
+  /* ══════════════════════════════════════════════
+     Sessions — IndexedDB
+  ══════════════════════════════════════════════ */
+  const DB_NAME = 'stacklite-db';
+  const DB_VER  = 1;
+  const STORE   = 'sessions';
+
+  let currentSessionId   = null;
+  let currentSessionTime = Date.now();
+  let saveTimer          = null;
+  let sessionsPanelOpen  = false;
+
+  function dbOpen() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE))
+          db.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  async function dbPut(session) {
+    const db = await dbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(session);
+      tx.oncomplete = res;
+      tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  async function dbGetAll() {
+    const db = await dbOpen();
+    return new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+      req.onsuccess = e => res(e.target.result.sort((a, b) => b.updatedAt - a.updatedAt));
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  async function dbDelete(id) {
+    const db = await dbOpen();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(id);
+      tx.oncomplete = res;
+      tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  function sessionLabel(code) {
+    const line = (code || '').split('\n')
+      .map(l => l.trim())
+      .find(l => l && !l.startsWith('//') && !l.startsWith('/*') && !l.startsWith('*'));
+    if (!line) return null;
+    return line.length > 34 ? line.slice(0, 34) + '…' : line;
+  }
+
+  function buildSession() {
+    const code = editor?.getValue() || '';
+    return {
+      id:        currentSessionId,
+      label:     sessionLabel(code),
+      lang:      currentLang,
+      code,
+      chat:      [...chatHistory],
+      createdAt: currentSessionTime,
+      updatedAt: Date.now(),
+    };
+  }
+
+  async function persistSession() {
+    if (!currentSessionId) return;
+    await dbPut(buildSession());
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persistSession, 1500);
+  }
+
+  function fmtDate(ts) {
+    const d   = new Date(ts);
+    const now = new Date();
+    const diff = now - d;
+    if (diff < 60000)    return 'just now';
+    if (diff < 3600000)  return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return 'yesterday';
+    return d.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+  }
+
+  async function renderSessionsList() {
+    const list     = document.getElementById('sessions-list');
+    const sessions = await dbGetAll();
+    if (!sessions.length) {
+      list.innerHTML = '<div class="sessions-empty">No sessions yet.</div>';
+      return;
+    }
+    list.innerHTML = sessions.map(s => `
+      <div class="session-item ${s.id === currentSessionId ? 'active' : ''}" onclick="loadSession('${s.id}')">
+        <div class="session-item-main">
+          <div class="session-name">${escapeHtml(s.label || (s.lang?.toUpperCase() + ' session') || 'Session')}</div>
+          <div class="session-meta">${(s.lang || 'js').toUpperCase()} · ${fmtDate(s.updatedAt)}</div>
+        </div>
+        <button class="session-delete" onclick="event.stopPropagation();deleteSession('${s.id}')" title="Delete">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>`).join('');
+  }
+
+  async function toggleSessionsPanel() {
+    sessionsPanelOpen = !sessionsPanelOpen;
+    document.getElementById('sessions-sidebar').classList.toggle('open', sessionsPanelOpen);
+    document.getElementById('sessions-toggle').classList.toggle('active', sessionsPanelOpen);
+    if (sessionsPanelOpen) {
+      await persistSession();
+      await renderSessionsList();
+    }
+  }
+
+  function resetEditorToLang(lang) {
+    currentLang = lang;
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`btn-${lang}`).classList.add('active');
+    document.getElementById('lang-label').textContent = lang === 'js' ? 'javascript' : 'typescript';
+    document.getElementById('tab-compiled-btn').style.display = lang === 'ts' ? '' : 'none';
+    monaco.editor.setModelLanguage(editor.getModel(), lang === 'js' ? 'javascript' : 'typescript');
+  }
+
+  function resetChatUI() {
+    chatHistory = [];
+    document.getElementById('chat-messages').innerHTML = `
+      <div class="chat-welcome">
+        <div class="chat-welcome-icon">◆</div>
+        <h3>Coding assistant</h3>
+        <p>Ask anything about your code — debug, explain, or get unstuck.</p>
+      </div>`;
+  }
+
+  function restoreChatUI() {
+    const container = document.getElementById('chat-messages');
+    if (!chatHistory.length) { resetChatUI(); return; }
+    container.innerHTML = '';
+    for (const msg of chatHistory) appendMessage(msg.role, msg.content);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  async function newSession() {
+    await persistSession();
+    currentSessionId   = genId();
+    currentSessionTime = Date.now();
+    resetEditorToLang('js');
+    editor.setValue(DEFAULTS.js);
+    clearConsole();
+    hideError();
+    resetChatUI();
+    await persistSession();
+    if (sessionsPanelOpen) await renderSessionsList();
+  }
+
+  async function loadSession(id) {
+    await persistSession();
+    const db = await dbOpen();
+    const s  = await new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(id);
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+    if (!s) return;
+    currentSessionId   = s.id;
+    currentSessionTime = s.createdAt;
+    resetEditorToLang(s.lang || 'js');
+    editor.setValue(s.code || DEFAULTS[s.lang || 'js']);
+    clearConsole();
+    hideError();
+    chatHistory = s.chat || [];
+    restoreChatUI();
+    if (sessionsPanelOpen) await renderSessionsList();
+  }
+
+  async function deleteSession(id) {
+    if (id === currentSessionId) await newSession();
+    await dbDelete(id);
+    await renderSessionsList();
+  }
+
+  // Init first session and hook auto-save to editor
+  currentSessionId = genId();
+  persistSession();
+
+  // Hook auto-save into editor changes (after editor is ready)
+  const _editorReadyCheck = setInterval(() => {
+    if (!editor) return;
+    clearInterval(_editorReadyCheck);
+    editor.onDidChangeModelContent(() => {
+      if (currentLang === 'ts') compileTS(false);
+      scheduleSave();
+    });
+  }, 100);
+
   // Expose functions used in inline onclick attributes
   Object.assign(window, {
     setLang, switchTab, runCode, toggleSidebar,
     toggleKeyPanel, saveSettings,
     sendMessage, clearChat,
+    toggleSessionsPanel, newSession, loadSession, deleteSession,
   });
 </script>
 </body>
