@@ -773,9 +773,12 @@
 
     .selection-card-preview {
       color: #888;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: pre;
+      line-height: 1.6;
     }
 
     .selection-card-dismiss {
@@ -1602,7 +1605,8 @@ Your role is to help them when they are stuck — explain concepts, debug errors
 
   function showSelectionCard(code) {
     pendingSelection = code;
-    const preview = code.split('\n').find(l => l.trim()) || code;
+    const lines = code.split('\n').filter(l => l.trim());
+    const preview = lines.slice(0, 2).join('\n') + (lines.length > 2 ? '\n…' : '');
     document.getElementById('selection-card-preview').textContent = preview;
     document.getElementById('selection-card').style.display = 'flex';
   }
