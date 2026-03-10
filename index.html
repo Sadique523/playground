@@ -265,11 +265,22 @@
       flex-direction: column;
       flex-shrink: 0;
       transition: width 0.2s ease, min-width 0.2s ease, border-left-width 0.2s step-end;
+      position: relative;
     }
     .chat-sidebar.open {
       width: 340px;
-      min-width: 340px;
+      min-width: 280px;
       border-left-width: 1px;
+    }
+    .chat-resize-handle {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      cursor: col-resize;
+      z-index: 10;
+    }
+    .chat-resize-handle:hover, .chat-resize-handle.dragging {
+      background: #2a2a2a;
     }
 
     .chat-header {
@@ -446,14 +457,32 @@
     }
     .msg-bubble .code-block:last-child { margin-bottom: 0; }
 
-    .msg-bubble .code-lang {
-      padding: 3px 12px;
+    .msg-bubble .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 3px 8px 3px 12px;
       background: #0d0d0d;
+      border-bottom: 1px solid var(--border);
+    }
+    .msg-bubble .code-lang {
       font-size: 10px;
       color: var(--text-dim);
       font-family: var(--mono);
-      border-bottom: 1px solid var(--border);
     }
+    .copy-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: var(--mono);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: color 0.15s;
+    }
+    .copy-btn:hover { color: var(--text-dim); }
+    .copy-btn.copied { color: #5a5; }
 
     .msg-bubble .code-block pre {
       margin: 0; padding: 0; border: none; border-radius: 0; background: transparent;
@@ -887,6 +916,7 @@
 
 <!-- ── Chat Sidebar (inside app-body so it pushes the editor) ── -->
 <div class="chat-sidebar" id="chat-sidebar">
+  <div class="chat-resize-handle" id="chat-resize-handle"></div>
   <div class="chat-header">
     <div class="chat-header-left">
       <div class="chat-avatar"></div>
@@ -1205,7 +1235,7 @@ console.log('Total users:', users.length);
   function showError(msg) { const b = document.getElementById('error-bar'); b.textContent = '⚠ ' + msg; b.style.display = 'block'; }
   function hideError() { document.getElementById('error-bar').style.display = 'none'; }
 
-  /* ── Drag-to-resize ── */
+  /* ── Drag-to-resize (editor/output panes) ── */
   const divider    = document.getElementById('divider');
   const editorPane = document.getElementById('editor-pane');
   const mainEl     = document.querySelector('.main');
@@ -1227,6 +1257,41 @@ console.log('Total users:', users.length);
     dragging = false; divider.classList.remove('dragging');
     document.body.style.cursor = ''; document.body.style.userSelect = '';
   });
+
+  /* ── Drag-to-resize (chat sidebar) ── */
+  const chatResizeHandle = document.getElementById('chat-resize-handle');
+  const chatSidebar      = document.getElementById('chat-sidebar');
+  let chatDragging = false;
+
+  chatResizeHandle.addEventListener('mousedown', e => {
+    if (!sidebarOpen) return;
+    chatDragging = true; chatResizeHandle.classList.add('dragging');
+    chatSidebar.style.transition = 'none';
+    document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!chatDragging) return;
+    const w = window.innerWidth - e.clientX;
+    chatSidebar.style.width = Math.min(Math.max(w, 280), 600) + 'px';
+    chatSidebar.style.minWidth = chatSidebar.style.width;
+  });
+  document.addEventListener('mouseup', () => {
+    if (!chatDragging) return;
+    chatDragging = false; chatResizeHandle.classList.remove('dragging');
+    chatSidebar.style.transition = '';
+    document.body.style.cursor = ''; document.body.style.userSelect = '';
+  });
+
+  /* ── Copy code block ── */
+  function copyCode(btn) {
+    const code = btn.closest('.code-block').querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+      btn.textContent = 'copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
+    });
+  }
 
   /* ══════════════════════════════════════════════
      Chat Sidebar
@@ -1307,15 +1372,18 @@ console.log('Total users:', users.length);
 
   /* ── Markdown rendering ── */
   // ── markdown-it + highlight.js ──
-  const _md = markdownit({
-    breaks: true,
-    linkify: true,
-    highlight(code, lang) {
-      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-      const highlighted = hljs.highlight(code, { language, ignoreIllegals: true }).value;
-      return `<div class="code-block">${lang ? `<div class="code-lang">${escapeHtml(lang)}</div>` : ''}<pre><code class="hljs">${highlighted}</code></pre></div>`;
-    },
-  });
+  const _md = markdownit({ breaks: true, linkify: true });
+
+  // Override fence rule to avoid markdown-it double-wrapping our HTML
+  _md.renderer.rules.fence = (tokens, idx) => {
+    const token = tokens[idx];
+    const lang = token.info.trim().split(/\s+/)[0];
+    const code = token.content;
+    const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+    const highlighted = hljs.highlight(code, { language, ignoreIllegals: true }).value;
+    const header = `<div class="code-header">${lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : '<span></span>'}<button class="copy-btn" onclick="copyCode(this)">copy</button></div>`;
+    return `<div class="code-block">${header}<pre><code class="hljs">${highlighted}</code></pre></div>`;
+  };
 
   function getMd() { return _md; }
 
@@ -1868,7 +1936,7 @@ Your role is to help them when they are stuck — explain concepts, debug errors
     toggleKeyPanel, saveSettings,
     sendMessage, clearChat,
     toggleSessionsPanel, newSession, loadSession, deleteSession,
-    openChatWithSelection, clearSelectionCard,
+    openChatWithSelection, clearSelectionCard, copyCode,
   });
 </script>
 </body>
