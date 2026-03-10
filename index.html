@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Playground</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: #252526;
+      border-bottom: 1px solid #3e3e42;
+      flex-shrink: 0;
+      height: 44px;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 14px;
+      color: #e8e8e8;
+      letter-spacing: -0.3px;
+    }
+
+    .logo span { color: #569cd6; }
+
+    .lang-selector {
+      display: flex;
+      background: #1e1e1e;
+      border-radius: 6px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .lang-btn {
+      padding: 3px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      color: #6e6e6e;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .lang-btn.active {
+      background: #0e639c;
+      color: #fff;
+    }
+
+    .lang-btn:hover:not(.active) { color: #ccc; }
+
+    .spacer { flex: 1; }
+
+    .run-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 16px;
+      background: #198844;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    .run-btn:hover { background: #1faa54; }
+    .run-btn:active { background: #157a3a; }
+
+    .run-icon {
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 8px solid #fff;
+    }
+
+    /* ── Main layout ── */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Editor pane ── */
+    .editor-pane {
+      display: flex;
+      flex-direction: column;
+      width: 50%;
+      min-width: 200px;
+      overflow: hidden;
+    }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px;
+      background: #2d2d2d;
+      border-bottom: 1px solid #3e3e42;
+      font-size: 11px;
+      color: #888;
+      gap: 6px;
+      flex-shrink: 0;
+      height: 30px;
+    }
+
+    .pane-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #569cd6;
+    }
+
+    #editor-container {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      width: 5px;
+      background: #3e3e42;
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background 0.15s;
+      position: relative;
+    }
+
+    .divider:hover, .divider.dragging { background: #0e639c; }
+
+    /* ── Output pane ── */
+    .output-pane {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 200px;
+    }
+
+    .tabs {
+      display: flex;
+      background: #2d2d2d;
+      border-bottom: 1px solid #3e3e42;
+      flex-shrink: 0;
+      height: 30px;
+    }
+
+    .tab-btn {
+      padding: 0 16px;
+      border: none;
+      background: transparent;
+      color: #6e6e6e;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tab-btn.active { color: #d4d4d4; border-bottom-color: #0e639c; }
+    .tab-btn:hover:not(.active) { color: #bbb; }
+
+    .error-bar {
+      padding: 6px 12px;
+      background: #5a1d1d;
+      color: #f48771;
+      font-family: 'Consolas', 'Menlo', monospace;
+      font-size: 12px;
+      display: none;
+      border-bottom: 1px solid #8b2020;
+      flex-shrink: 0;
+    }
+
+    .tab-content {
+      flex: 1;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Console output */
+    #console-output {
+      flex: 1;
+      padding: 12px 14px;
+      font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      overflow-y: auto;
+      background: #1e1e1e;
+    }
+
+    .console-line {
+      display: flex;
+      gap: 8px;
+      padding: 1px 0;
+    }
+
+    .console-line::before {
+      content: '›';
+      color: #555;
+      flex-shrink: 0;
+    }
+
+    .log   { color: #d4d4d4; }
+    .error { color: #f48771; }
+    .warn  { color: #cca700; }
+    .info  { color: #9cdcfe; }
+    .result { color: #4ec9b0; font-style: italic; }
+
+    .console-line.error::before { content: '✕'; color: #f48771; }
+    .console-line.warn::before  { content: '⚠'; color: #cca700; }
+    .console-line.result::before { content: '←'; color: #4ec9b0; }
+
+    .placeholder {
+      color: #444;
+      font-style: italic;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      padding: 20px 14px;
+    }
+
+    /* Compiled output */
+    #compiled-container {
+      flex: 1;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Code<span>Pad</span></div>
+
+  <div class="lang-selector">
+    <button class="lang-btn active" id="btn-js" onclick="setLang('js', this)">JS</button>
+    <button class="lang-btn" id="btn-ts" onclick="setLang('ts', this)">TS</button>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button class="run-btn" onclick="runCode()">
+    <div class="run-icon"></div>
+    Run
+  </button>
+</header>
+
+<div class="main">
+  <!-- Editor -->
+  <div class="editor-pane" id="editor-pane">
+    <div class="pane-header">
+      <div class="pane-dot"></div>
+      <span id="lang-label">JavaScript</span>
+    </div>
+    <div id="editor-container"></div>
+  </div>
+
+  <!-- Resize divider -->
+  <div class="divider" id="divider"></div>
+
+  <!-- Output -->
+  <div class="output-pane">
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-console-btn" onclick="switchTab('console')">Console</button>
+      <button class="tab-btn" id="tab-compiled-btn" onclick="switchTab('compiled')" style="display:none">Compiled JS</button>
+    </div>
+
+    <div class="error-bar" id="error-bar"></div>
+
+    <!-- Console tab -->
+    <div class="tab-content active" id="tab-console">
+      <div id="console-output">
+        <div class="placeholder">Press Run to execute your code…</div>
+      </div>
+    </div>
+
+    <!-- Compiled JS tab -->
+    <div class="tab-content" id="tab-compiled">
+      <div id="compiled-container"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TypeScript compiler -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.3.3/typescript.min.js"></script>
+<!-- Monaco loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+
+<script>
+  let editor, compiledEditor;
+  let currentLang = 'js';
+
+  const DEFAULTS = {
+    js: `// JavaScript Playground
+function greet(name) {
+  return \`Hello, \${name}!\`;
+}
+
+const nums = [1, 2, 3, 4, 5];
+console.log(greet('World'));
+console.log('Doubled:', nums.map(n => n * 2));
+console.log('Sum:', nums.reduce((a, b) => a + b, 0));
+`,
+    ts: `// TypeScript Playground
+interface User {
+  name: string;
+  age: number;
+}
+
+function greet(user: User): string {
+  return \`Hello, \${user.name}! You are \${user.age} years old.\`;
+}
+
+const users: User[] = [
+  { name: 'Alice', age: 30 },
+  { name: 'Bob', age: 25 },
+];
+
+users.forEach(u => console.log(greet(u)));
+console.log('Total users:', users.length);
+`,
+  };
+
+  // Monaco setup
+  require.config({
+    paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' },
+  });
+
+  require(['vs/editor/editor.main'], () => {
+    editor = monaco.editor.create(document.getElementById('editor-container'), {
+      value: DEFAULTS.js,
+      language: 'javascript',
+      theme: 'vs-dark',
+      fontSize: 14,
+      fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+      fontLigatures: true,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      tabSize: 2,
+      lineNumbersMinChars: 3,
+      padding: { top: 10 },
+    });
+
+    compiledEditor = monaco.editor.create(document.getElementById('compiled-container'), {
+      value: '',
+      language: 'javascript',
+      theme: 'vs-dark',
+      fontSize: 14,
+      fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      readOnly: true,
+      tabSize: 2,
+      lineNumbersMinChars: 3,
+      padding: { top: 10 },
+    });
+
+    // Auto-compile TS on change
+    editor.onDidChangeModelContent(() => {
+      if (currentLang === 'ts') compileTS(false);
+    });
+  });
+
+  // ── Language switching ──────────────────────────────────────
+  function setLang(lang, btn) {
+    currentLang = lang;
+
+    document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    document.getElementById('lang-label').textContent =
+      lang === 'js' ? 'JavaScript' : 'TypeScript';
+
+    const compiledTabBtn = document.getElementById('tab-compiled-btn');
+    compiledTabBtn.style.display = lang === 'ts' ? '' : 'none';
+
+    // If compiled tab was active and we switch to JS, go back to console
+    if (lang === 'js' && document.getElementById('tab-compiled').classList.contains('active')) {
+      switchTab('console');
+    }
+
+    monaco.editor.setModelLanguage(editor.getModel(), lang === 'js' ? 'javascript' : 'typescript');
+    editor.setValue(DEFAULTS[lang]);
+    clearConsole();
+    hideError();
+
+    if (lang === 'ts') compileTS(false);
+  }
+
+  // ── Tab switching ───────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+    document.getElementById(`tab-${tab}-btn`).classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+  }
+
+  // ── TypeScript compilation ──────────────────────────────────
+  function compileTS(showErrors = true) {
+    const src = editor.getValue();
+    try {
+      const result = ts.transpileModule(src, {
+        compilerOptions: {
+          target: ts.ScriptTarget.ES2020,
+          module: ts.ModuleKind.None,
+          strict: false,
+          removeComments: false,
+        },
+      });
+      compiledEditor.setValue(result.outputText.trim());
+      hideError();
+      return result.outputText;
+    } catch (e) {
+      if (showErrors) showError(e.message);
+      return null;
+    }
+  }
+
+  // ── Run code ────────────────────────────────────────────────
+  function runCode() {
+    switchTab('console');
+    clearConsole();
+    hideError();
+
+    let code = editor.getValue();
+
+    if (currentLang === 'ts') {
+      const compiled = compileTS(true);
+      if (!compiled) return;
+      code = compiled;
+    }
+
+    const logs = [];
+
+    const orig = {
+      log:   console.log.bind(console),
+      error: console.error.bind(console),
+      warn:  console.warn.bind(console),
+      info:  console.info.bind(console),
+    };
+
+    function fmt(v) {
+      if (v === null) return 'null';
+      if (v === undefined) return 'undefined';
+      if (typeof v === 'object') {
+        try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+      }
+      return String(v);
+    }
+
+    function capture(type, args) {
+      logs.push({ type, text: args.map(fmt).join(' ') });
+    }
+
+    console.log   = (...a) => { capture('log',   a); orig.log(...a); };
+    console.error = (...a) => { capture('error', a); orig.error(...a); };
+    console.warn  = (...a) => { capture('warn',  a); orig.warn(...a); };
+    console.info  = (...a) => { capture('info',  a); orig.info(...a); };
+
+    try {
+      // eslint-disable-next-line no-new-func
+      const fn = new Function(code);
+      const ret = fn();
+      if (ret !== undefined) {
+        logs.push({ type: 'result', text: fmt(ret) });
+      }
+    } catch (e) {
+      logs.push({ type: 'error', text: e.message });
+      showError(e.toString());
+    } finally {
+      Object.assign(console, orig);
+    }
+
+    renderLogs(logs);
+  }
+
+  function renderLogs(logs) {
+    const out = document.getElementById('console-output');
+    if (logs.length === 0) {
+      out.innerHTML = '<div class="placeholder">Code ran with no output.</div>';
+      return;
+    }
+    out.innerHTML = '';
+    for (const { type, text } of logs) {
+      const div = document.createElement('div');
+      div.className = `console-line ${type}`;
+      // Handle multi-line values
+      const pre = document.createElement('pre');
+      pre.style.cssText = 'margin:0; white-space:pre-wrap; font:inherit;';
+      pre.textContent = text;
+      div.appendChild(pre);
+      out.appendChild(div);
+    }
+  }
+
+  function clearConsole() {
+    document.getElementById('console-output').innerHTML =
+      '<div class="placeholder">Press Run to execute your code…</div>';
+  }
+
+  function showError(msg) {
+    const bar = document.getElementById('error-bar');
+    bar.textContent = '⚠ ' + msg;
+    bar.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-bar').style.display = 'none';
+  }
+
+  // ── Drag-to-resize ──────────────────────────────────────────
+  const divider   = document.getElementById('divider');
+  const editorPane = document.getElementById('editor-pane');
+  const mainEl    = document.querySelector('.main');
+  let dragging = false;
+
+  divider.addEventListener('mousedown', e => {
+    dragging = true;
+    divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const rect  = mainEl.getBoundingClientRect();
+    const pct   = ((e.clientX - rect.left) / (rect.width - 5)) * 100;
+    const clamped = Math.min(Math.max(pct, 20), 80);
+    editorPane.style.width = clamped + '%';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+</script>
+</body>
+</html>
