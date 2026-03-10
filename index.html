@@ -772,8 +772,6 @@
     <button class="lang-btn" id="btn-ts" onclick="setLang('ts', this)">TS</button>
   </div>
 
-  <div class="spacer"></div>
-
   <button class="run-btn" onclick="runCode()">
     <div class="run-icon"></div>
     Run
@@ -1049,9 +1047,6 @@ console.log('Total users:', users.length);
     if (lang === 'js' && document.getElementById('tab-compiled').classList.contains('active')) switchTab('console');
 
     monaco.editor.setModelLanguage(editor.getModel(), lang === 'js' ? 'javascript' : 'typescript');
-    editor.setValue(DEFAULTS[lang]);
-    clearConsole();
-    hideError();
     if (lang === 'ts') compileTS(false);
   }
 
